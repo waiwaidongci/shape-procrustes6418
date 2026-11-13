@@ -23,7 +23,8 @@
 5. 09:22 真实主研究4步收敛，目标0.01445663→0.0139458776747，det(R)≈1；GPA均值范数1，PCA算术均值范数0.9997675687，两均值差0.00023243129。左右画布各自等比例缩放，不以像素比较物理尺寸。
 6. 09:25 查看PC1/2/3真实奇异值0.09730803/0.06469489/0.008383326，解释率67.9050%、30.0154%、0.5040%，累计98.4245%。同画布画算术均值及±2sd端点，端点未再单位化。
 7. 09:30 选择TL23，保留3模态重建残差0.00403665。写明实物角点复测、镜像方向与制造约束，不能直接把线性模态作为切割图。
-8. 10:00 沈汀用admin留批注并同意复验；叶禾用viewer下载 `inspection-note-<id>.csv`，含审批、配准摘要、30份轮廓的原始/对齐/重建坐标、两种均值与模态端点。新点需新建冻结研究，不回写历史结果。
+8. 09:40 对主研究点“逐片剔除敏感性”：每次剔除一份裁片，用该研究冻结快照重算GPA与PCA，比较PCA算术均值偏移、保留3模态累计解释率变化与保留子空间夹角，按影响排序。诊断只读原结果、不覆盖；中断后从已算裁片续跑，重复执行不新增；09:50修改源点只影响新任务，不改变这次诊断依据。
+9. 10:00 沈汀用admin留批注并同意复验；叶禾用viewer下载 `inspection-note-<id>.csv`，含审批、配准摘要、30份轮廓的原始/对齐/重建坐标、两种均值与模态端点。新点需新建冻结研究，不回写历史结果。
 
 数值来自固定seed输入的真实API/worker计算；镜像集合最大GPA距离约1.03168，仍保留差异。全同形校验有浮点残差约2.08e−15且没有假模态。
 
@@ -75,6 +76,18 @@ GPA交替：逐份旋转到当前均值→取算术均值→单位化→将均�
 
 PCA另取所有对齐坐标flatten后的算术均值μ，不把单位GPA均值当μ。对A=flatten(aligned)−μ做SVD；特征值s²/(n−1)、解释率s²/Σs²，端点 `μ ± 2 sqrt(lambda) loading`，逐份保存保留k模态重建和欧氏残差。
 
+## 逐片剔除敏感性诊断
+
+对已完成研究 `run.result.snapshot`（创建时冻结的集合/模板/裁片）逐份剔除一片，对剩余 `n−1` 份用同一 `retained`、`tolerance` 重新执行GPA与PCA，再与已发布结果比较：
+
+- **均值偏移**：剔除后PCA算术均值与基线算术均值的欧氏距离，同时记录相对基线均值范数的比例与GPA均值偏移。
+- **累计解释率**：保留 `k = pca.retained`（有效秩与请求数取小）时前k个解释率之和，按百分点记录变化。有效秩小于k时不可比。
+- **保留子空间夹角**：对两组保留 `k` 维右奇异子空间计算主夹角，记录最大与平均角。近重复奇异值按**子空间**而非单轴比较：相邻已解析奇异值相对间隙 ≤1% 的链视为近重根簇；保留边界（k）落在簇内时，单轴不唯一，夹角照算但标为**不可判定**并给出簇与原因。基线边界落在簇中时同样标记。
+
+影响值取 `max(均值偏移/基线均值范数, |累计解释率变化|, 最大主子空间夹角/90°)`，按降序编号；样本不足或无可解析方差时只用仍可比指标排序并标注“部分比较”。排序在读取时从冻结基线重算，不写入发布结果。
+
+样本不足（剩余少于 `max(3, k+1)` 份、有效秩低于k、或剩余不足GPA所需的2份）与无解析方差（`active_rank = 0`）都记录明确原因，对应指标留空，不伪装成可比数值。剔除仅针对冻结快照；之后修改原始点/模板不改变已有诊断的依据（`basis_fingerprint` 校验冻结快照，另核对发布结果指纹）。诊断存 `sensitivity_diagnostics` / `sensitivity_items` 独立表，`run_id` 唯一，重复请求返回既有诊断，worker 逐份提交、跳过已算裁片，因此中断可续跑且不新增结果。worker 先处理配准任务、再处理诊断队列（Redis `shapes:sensitivity` 仅作唤醒，数据库扫描仍是权威）。
+
 有效秩阈值为 `eps * max(A.shape) * ||flatten(aligned)||F`，相对于单位对齐数据的机器精度，不用大绝对方差阈值。保存全部真实奇异值/特征值；未解析出方差时没有PCA轴、得分或±2sd模态，解释率不报告。1e−9的真实微形变在独立oracle中保留。计算定义参考 [NumPy SVD](https://numpy.org/doc/stable/reference/generated/numpy.linalg.svd.html)；[SciPy orthogonal_procrustes](https://docs.scipy.org/doc/scipy/reference/generated/scipy.linalg.orthogonal_procrustes.html)本身允许反射，不能直接替代这里的SO(2)约束。
 
 符号以最大绝对载荷为正固定，只消除符号不确定性。近重复奇异值时模态方向/顺序不唯一，单轴不具物理唯一性；子空间重建和累计解释率更稳。PCA是对齐形状的外在线性描述，端点不强制单位形状、无自交或制造约束，不保证可制造，也不证明工艺成因。
@@ -83,11 +96,11 @@ SHA256覆盖算法版本、完整冻结集合/模板/裁片、保留数和容差
 
 ## 代码与本地开发
 
-ShapeCollection、Template、ShapeSpecimen、AlignmentRun、InspectionNote各有独立model/schema/service/controller/route/API。collectionStore管理集合/基准、specimenStore管理原始点、researchStore管理任务/批注。六页为索引、来源、运行、结果、批注、留痕，登录另计；ShapeCanvas复用于索引/模板/配准/模态，同画布保持等比例。PageHeading/StatusBadge/ErrorNotice等共享，useTask/usePolling与format工具复用。宽表只局部滚动，grid使用minmax(0,1fr)/min-width:0；结果选择按真实加载数据同步。
+ShapeCollection、Template、ShapeSpecimen、AlignmentRun、InspectionNote、SensitivityDiagnostic/SensitivityItem各有独立model/schema/service/controller/route/API；敏感性走 `/runs/{id}/sensitivity` 的GET/POST（POST幂等，返回同一诊断）。collectionStore管理集合/基准、specimenStore管理原始点、researchStore管理任务/批注。六页为索引、来源、运行、结果、批注、留痕，登录另计；ShapeCanvas复用于索引/模板/配准/模态，同画布保持等比例。PageHeading/StatusBadge/ErrorNotice等共享，useTask/usePolling与format工具复用。宽表只局部滚动，grid使用minmax(0,1fr)/min-width:0；结果选择按真实加载数据同步。
 
 目录为backend/src/{models,schemas,services,controllers,routes,config,constants,middlewares,utils}，数学services/{geometry,gpa,deformation}.py，seed与初始migrations；frontend/src/{api,stores,types,constants,components/common,hooks,pages,router,utils}。
 
-共享Role/RunStatus/NoteStatus在backend/src/constants/enums.py和frontend/src/constants/enums.ts，角色类型在frontend/src/types/domain.ts；RunStatus用于service/worker，NoteStatus用于schema/service，前端用于账户、状态及页面。
+共享Role/RunStatus/NoteStatus/DiagnosticStatus/SensitivityItemStatus在backend/src/constants/enums.py和frontend/src/constants/enums.ts，角色类型在frontend/src/types/domain.ts；RunStatus用于service/worker，NoteStatus用于schema/service，前端用于账户、状态及页面。
 
 ```bash
 docker compose up -d db redis

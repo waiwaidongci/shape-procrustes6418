@@ -1,0 +1,1 @@
+import {request,post} from './client';import type {SensitivityEnvelope} from '../types/domain';export const get=(runId:number)=>request<SensitivityEnvelope>('/runs/'+runId+'/sensitivity');export const create=(runId:number)=>post<SensitivityEnvelope>('/runs/'+runId+'/sensitivity',{});

@@ -104,3 +104,41 @@ CREATE TABLE inspection_notes (
 )
 
 ;
+
+CREATE TABLE sensitivity_diagnostics (
+	id SERIAL NOT NULL,
+	run_id INTEGER NOT NULL,
+	status VARCHAR(20) NOT NULL,
+	basis_fingerprint VARCHAR(64) NOT NULL,
+	total INTEGER NOT NULL,
+	retained INTEGER NOT NULL,
+	effective_retained INTEGER NOT NULL,
+	tolerance DOUBLE PRECISION NOT NULL,
+	summary JSON NOT NULL,
+	error VARCHAR(600) NOT NULL,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	updated_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	UNIQUE (run_id),
+	FOREIGN KEY(run_id) REFERENCES alignment_runs (id)
+)
+
+;
+
+CREATE TABLE sensitivity_items (
+	id SERIAL NOT NULL,
+	diagnostic_id INTEGER NOT NULL,
+	specimen_id INTEGER NOT NULL,
+	code VARCHAR(50) NOT NULL,
+	name VARCHAR(100) NOT NULL,
+	status VARCHAR(20) NOT NULL,
+	reason VARCHAR(600) NOT NULL,
+	metrics JSON NOT NULL,
+	created_at TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+	PRIMARY KEY (id),
+	CONSTRAINT uq_sensitivity_item UNIQUE (diagnostic_id, specimen_id),
+	FOREIGN KEY(diagnostic_id) REFERENCES sensitivity_diagnostics (id),
+	FOREIGN KEY(specimen_id) REFERENCES shape_specimens (id)
+)
+
+;

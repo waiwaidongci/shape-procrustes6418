@@ -1,1 +1,2 @@
 export const roles={admin:'复验负责人',analyst:'形状分析员',viewer:'纸模观察员'};export const runStatus={queued:'等待配准',running:'对齐与分解中',completed:'已完成',failed:'未能计算'};export const noteStatus={draft:'待负责人审阅',approved:'同意复验',rejected:'退回补充'};
+export const diagnosticStatus={queued:'等待诊断',running:'逐片剔除中',completed:'诊断完成',failed:'诊断失败'};export const itemStatus={computed:'可比较',undetermined:'不可判定',insufficient:'样本不足',no_variance:'无可解析方差',failed:'计算失败'};

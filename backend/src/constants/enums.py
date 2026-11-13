@@ -5,3 +5,11 @@ class RunStatus(StrEnum):
     QUEUED='queued'; RUNNING='running'; COMPLETED='completed'; FAILED='failed'
 class NoteStatus(StrEnum):
     DRAFT='draft'; APPROVED='approved'; REJECTED='rejected'
+class DiagnosticStatus(StrEnum):
+    QUEUED='queued'; RUNNING='running'; COMPLETED='completed'; FAILED='failed'
+class SensitivityItemStatus(StrEnum):
+    COMPUTED='computed'
+    UNDETERMINED='undetermined'
+    INSUFFICIENT='insufficient'
+    NO_VARIANCE='no_variance'
+    FAILED='failed'
